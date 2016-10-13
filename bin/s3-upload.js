@@ -33,14 +33,35 @@ const parseFile = (fileBuffer) => {
   file.data = fileBuffer;
   return file;
 };
-
 // buffer is temporary holding place in memory for a sequence of bytes.
 
-const logMessage = (file) => { //the buffer is now on data key of file
-  console.log(`${filename} is ${file.data.length} bytes long and is type of mime ${file.mime}`);
+const upload = (file) =>{
+  const options = {
+    // get the bucket name from AWS S3 console
+    Bucket: 'wdiknoddinbucket',
+    // attach filebugger as a stream to sent to amazon
+    Body: file.data,
+    // allow anyone to access the url of the uploaded file
+    ACL: 'public-read',
+    // tell amazon what the mime type is
+    ContentType: file.mime,
+    // pick a filename for S3 to use for the upload
+    Key: `test/test.${file.ext}`
+  };
+  // dont actually upload yet, just pass the data down the promise chain
+  return Promise.resolve(options);
+};
+
+const logMessage = (upload) => { //the buffer is now on data key of file
+  // get rid of the stream for now, so i can log rest of options in the
+  // terminal without seeing the stream
+  delete upload.Body;
+  // turn the pojo into a string so i can see it on the console
+  console.log(`the upload options are ${JSON.stringify(upload)}`);
 };
 
 readFile(filename)
 .then(parseFile)
+.then(upload)
 .then(logMessage)
 .catch(console.error);
