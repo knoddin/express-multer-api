@@ -18,6 +18,6 @@ module.exports = require('lib/wiring/routes')
 .resources('users', { only: ['index', 'show'] })
 
 // custon routes
-.resources('uploads',{ only: ['index', 'show', 'create'] })
+.resources('uploads', { only: ['index', 'show', 'create'] })
 // all routes created
 ;
