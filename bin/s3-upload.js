@@ -1,9 +1,11 @@
 'use strict';
 
 // this has to come before anything else
-require('dotenv').config(); //put in
+require('dotenv').config();
 
 const fs = require('fs');
+const crypto = require('crypto');
+
 const fileType = require('file-type');
 const AWS = require('aws-sdk');
 
@@ -15,13 +17,14 @@ const readFile = (filename) => {
       if (error) {
         reject(error);
       }
+
       resolve(data);
     });
   });
 };
 
 // return a default object in the case that fileType is given an unsupported
-// file type
+// filetype to read
 const mimeType = (data) => {
   return Object.assign({
     ext: 'bin',
@@ -29,55 +32,79 @@ const mimeType = (data) => {
   }, fileType(data));
 };
 
-// if filetype returned png, ext gets overwritten
-
 const parseFile = (fileBuffer) => {
   let file = mimeType(fileBuffer);
   file.data = fileBuffer;
   return file;
 };
-// buffer is temporary holding place in memory for a sequence of bytes.
+
+const randomHexString = (length) => {
+  return new Promise((resolve, reject) => {
+    crypto.randomBytes(length, (error, buffer) => {
+      if (error) {
+        reject(error);
+      }
+
+      resolve(buffer.toString('hex'));
+    });
+  });
+};
+
+const nameFile = (file) => {
+  return randomHexString(16)
+  .then((val) => {
+    file.name = val;
+    return file;
+  });
+};
+
+const nameDirectory = (file) => {
+  file.dir = new Date().toISOString().split('T')[0];
+  return file;
+};
+
 const s3 = new AWS.S3({
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   }
 });
-// instance of s3 manager that will be authenticated
 
-
-const upload = (file) =>{
+const upload = (file) => {
   const options = {
-    // get the bucket name from AWS S3 console
+    // get the bucket name from your AWS S3 console
     Bucket: 'wdiknoddinbucket',
-    // attach filebugger as a stream to sent to amazon
+    // attach the fileBuffer as a stream to send to S3
     Body: file.data,
-    // allow anyone to access the url of the uploaded file
+    // allow anyone to access the URL of the uploaded file
     ACL: 'public-read',
-    // tell amazon what the mime type is
+    // tell S3 what the mime-type is
     ContentType: file.mime,
     // pick a filename for S3 to use for the upload
-    Key: `test/test.${file.ext}`
+    Key: `${file.dir}/${file.name}.${file.ext}`
   };
+
   return new Promise((resolve, reject) => {
     s3.upload(options, (error, data) => {
       if (error) {
         reject(error);
       }
-      resolve(data) ;
+
+      resolve(data);
     });
   });
-}; //either an error or data returned from s3
+};
 
-const logMessage = (response) => { //the buffer is now on data key of file
-
-  // turn the pojo into a string so i can see it on the console
+const logMessage = (response) => {
+  // turn the pojo into a string so I can see it on the console
   console.log(`the response from AWS was ${JSON.stringify(response)}`);
-
 };
 
 readFile(filename)
 .then(parseFile)
+.then(nameFile)
+.then(nameDirectory)
 .then(upload)
 .then(logMessage)
-.catch(console.error);
+.catch(console.error)
+;
